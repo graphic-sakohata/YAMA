@@ -1,189 +1,172 @@
-rule APT10_ANEL_InitRoutine {
-      meta:
-        description = "ANEL malware"
+rule CryptHunter_downloaderjs {
+     meta:
+        description = "JS downloader executed from an lnk file used in CryptHunter"
         author = "JPCERT/CC Incident Response Group"
-        hash = "2371f5b63b1e44ca52ce8140840f3a8b01b7e3002f0a7f0d61aecf539566e6a1"
-
-    	strings:
-    		$GetAddress = { C7 45 ?? ?? 69 72 74 C7 45 ?? 75 61 6C 50 C7 45 ?? 72 6F 74 65 66 C7 45 ?? 63 74 [3-4] C7 45 ?? ?? 65 72 6E C7 45 ?? 65 6C 33 32 C7 45 ?? 2E 64 6C 6C [3-4] FF 15 ?? ?? ?? ?? 50 FF 15 ?? ?? ?? ?? }
-    	condition:
-    		$GetAddress
-}
-
-rule APT10_redleaves_strings {
-      meta:
-        description = "RedLeaves malware"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "ff0b79ed5ca3a5e1a9dabf8e47b15366c1d0783d0396af2cbba8e253020dbb34"
-
-    	strings:
-    		$v1a = "red_autumnal_leaves_dllmain.dll"
-        $w1a = "RedLeavesCMDSimulatorMutex" wide
-    	condition:
-    		$v1a or $w1a
-}
-
-rule APT10_redleaves_dropper1 {
-      meta:
-        description = "RedLeaves dropper"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "5262cb9791df50fafcb2fbd5f93226050b51efe400c2924eecba97b7ce437481"
+        hash = "bb7349d4fd7efa838a92fc4a97ec2a25b82dde36236bdc09b531c20370d7f848"
 
      strings:
-        $v1a = ".exe"
-        $v1b = ".dll"
-        $v1c = ".dat"
-        $a2a = {E8 ?? ?? FF FF 68 ?? 08 00 00 FF}
-        $d2a = {83 C2 02 88 0E 83 FA 08}
-        $d2b = {83 C2 02 88 0E 83 FA 10}
+        $a = "pi.ProcessID!==0 && pi.ProcessID!==4){"
+        $b = "prs=prs+pi.CommandLine.toLowerCase();}"
+
+     condition:
+       any of them
+}
+
+rule CryptHunter_lnk_bitly {
+      meta:
+        description = "detect suspicious lnk file"
+        author = "JPCERT/CC Incident Response Group"
+        reference = "internal research"
+        hash1 = "01b5cd525d18e28177924d8a7805c2010de6842b8ef430f29ed32b3e5d7d99a0"
+
+      strings:
+        $a1 = "cmd.exe" wide ascii
+        $a2 = "mshta" wide ascii
+        $url1 = "https://bit.ly" wide ascii
+
+      condition:
+        (uint16(0) == 0x004c) and
+        (filesize<100KB)  and
+        ((1 of ($a*)) and ($url1))
+}
+
+rule CryptHunter_httpbotjs_str {
+    meta:
+        description = "HTTP bot js in CryptHunter"
+        author = "JPCERT/CC Incident Response Group"
+        hash1 = "b316b81bc0b0deb81da5e218b85ca83d7260cc40dae97766bc94a6931707dc1b"
+
+     strings:
+        $base64 = "W0NtZGxldEJpbmRpbmcoKV1QYXJhbShbUGFyYW1ldGVyKFBvc2l0aW9uPTApXVtTdHJpbmddJFVSTCxbUGFyYW1ldGVyKFBvc2l0aW9uPTEpXVtTdHJpbmddJFVJRCkNCmZ1bmN0aW9uIEh0dHBSZXEyew" ascii
+        $var1 = { 40 28 27 22 2b 70 32 61 2b 22 27 2c 20 27 22 2b 75 69 64 2b 22 27 29 3b 7d }
+
      condition:
         all of them
 }
 
-rule APT10_redleaves_dropper2 {
-      meta:
-        description = "RedLeaves dropper"
+
+
+rule CryptHunter_python_downloader {
+    meta:
+        description = "1st stage python downloader in CryptHunter"
         author = "JPCERT/CC Incident Response Group"
-        hash = "3f5e631dce7f8ea555684079b5d742fcfe29e9a5cea29ec99ecf26abc21ddb74"
+        rule_usage = "Hunting"
+        hash1 = "e0891a1bfa5980171599dc5fe31d15be0a6c79cc08ab8dc9f09ceec7a029cbdf"
+
+    strings:
+        $str01 = "auto_interrupt_handle" ascii wide fullword
+        $str02 = "aW1wb3J0IHN0cmluZw0KaW1wb3J0IHJhbmRvbQ0" ascii wide fullword
+
+        $rot13_01 = "clguba" ascii wide fullword
+        $rot13_02 = "log_handle_method" ascii wide fullword
+        $rot13_03 = "rot13" ascii wide fullword
+        $rot13_04 = "zfvrkrp" ascii wide fullword
+        $rot13_05 = "Jvaqbjf" ascii wide fullword
+        $rot13_06 = ".zfv" ascii wide fullword
+        $rot13_07 = "qrirybcpber" ascii wide fullword
+        $rot13_08 = "uggc://ncc." ascii wide fullword
+        $rot13_09 = "cat_file_header_ops" ascii wide fullword
+
+    condition:
+        (filesize > 10KB)
+        and (filesize < 5MB)
+        and ( 1 of ($str*) or ( 3 of ($rot13*) ))
+}
+
+rule CryptHunter_python_simple_rat {
+    meta:
+        description = "2nd stage python simple rat in CryptHunter"
+        author = "JPCERT/CC Incident Response Group"
+        rule_usage = "Hunting"
+        hash1 = "39bbc16028fd46bf4ddad49c21439504d3f6f42cccbd30945a2d2fdb4ce393a4"
+        hash2 = "5fe1790667ee5085e73b054566d548eb4473c20cf962368dd53ba776e9642272"
+
+    strings:
+        $domain01 = "www.git-hub.me" ascii wide fullword
+        $domain02 = "nivyga.com" ascii wide fullword
+        $domain03 = "tracking.nivyga.com" ascii wide fullword
+        $domain04 = "yukunmaoyi.com" ascii wide fullword
+        $domain05 = "gameofwarsite.com" ascii wide fullword
+        $domain06 = "togetherwatch.com" ascii wide fullword
+        $domain07 = "9d90-081d2f-vultr-los-angeles-boxul.teridions.net" ascii wide fullword
+        $domain08 = "8dae-77766a-vultr-los-angeles-egnyte-sj.d1.teridioncloud.net" ascii wide fullword
+        $domain09 = "www.jacarandas.top" ascii wide fullword
+        $domain10 = "cleargadgetwinners.top" ascii wide fullword
+        $domain11 = "ns1.smoothieking.info" ascii wide fullword
+        $domain12 = "ns2.smoothieking.info" ascii wide fullword
+
+        $str01 = "Jvaqbjf" ascii wide fullword
+        $str02 = "Yvahk" ascii wide fullword
+        $str03 = "Qnejva" ascii wide fullword
+        $str04 = "GITHUB_REQ" ascii wide fullword
+        $str05 = "GITHUB_RES" ascii wide fullword
+        $str06 = "BasicInfo" ascii wide fullword
+        $str07 = "CmdExec" ascii wide fullword
+        $str08 = "DownExec" ascii wide fullword
+        $str09 = "KillSelf" ascii wide fullword
+        $str10 = "pp -b /gzc/.VPR-havk/tvg" ascii wide fullword
+        $str11 = "/gzc/.VPR-havk/tvg" ascii wide fullword
+        $str12 = "NccyrNppbhag.gtm" ascii wide fullword
+        $str13 = "/GrzcHfre/NccyrNppbhagNffvfgnag.ncc" ascii wide fullword
+        $str14 = "Pheerag Gvzr" ascii wide fullword
+        $str15 = "Hfreanzr" ascii wide fullword
+        $str16 = "Ubfganzr" ascii wide fullword
+        $str17 = "BF Irefvba" ascii wide fullword
+        $str18 = "VQ_YVXR=qrovna" ascii wide fullword
+        $str19 = "VQ=qrovna" ascii wide fullword
+        $str20 = "/rgp/bf-eryrnfr" ascii wide fullword
+        $str21 = " -yafy -ycguernq -yerfbyi -fgq=tah99" ascii wide fullword
+
+    condition:
+        (filesize > 1KB)
+        and (filesize < 5MB)
+        and ( 1 of ($domain*) or ( 3 of ($str*) ))
+}
+
+rule CryptHunter_js_downloader {
+    meta:
+        description = "1st stage js downloader in CryptHunter"
+        author = "JPCERT/CC Incident Response Group"
+        rule_usage = "Hunting"
+        hash1 = "67a0f25a20954a353021bbdfdd531f7cc99c305c25fb03079f7abbc60e8a8081"
+
+    strings:
+        $code01 = "UID + AgentType + SessionType + OS;" ascii wide fullword
+        $code02 = "received_data.toString().startsWith" ascii wide fullword
+        $str01 = "GITHUB_RES" ascii wide fullword
+        $str02 = "GITHUB_REQ" ascii wide fullword
+
+    condition:
+        (filesize > 1KB)
+        and (filesize < 5MB)
+        and ( 1 of ($code*) or ( 2 of ($str*) ))
+}
+
+rule CryptHunter_JokerSpy_macos {
+     meta:
+        description = "Mach-O malware using APT29"
+        author = "JPCERT/CC Incident Response Group"
+        hash = "6d3eff4e029db9d7b8dc076cfed5e2315fd54cb1ff9c6533954569f9e2397d4c"
+        hash = "951039bf66cdf436c240ef206ef7356b1f6c8fffc6cbe55286ec2792bf7fe16c"
+        hash = "d895075057e491b34b0f8c0392b44e43ade425d19eaaacea6ef8c5c9bd3487d8"
 
      strings:
-        $v1a = ".exe"
-        $v1b = ".dll"
-        $v1c = ".dat"
-        $c2a = {B8 CD CC CC CC F7 E1 C1 EA 03}
-        $c2b = {68 80 00 00 00 6A 01 6A 01 6A 01 6A 01 6A FF 50}
+        $db = "/Library/Application Support/com.apple.TCC/TCC.db" ascii
+        $path = "/Users/joker/Downloads/Spy/XProtectCheck/XProtectCheck/" ascii
+        $msg1 = "The screen is currently LOCKED!" ascii
+        $msg2 = "Accessibility: YES" ascii
+        $msg3 = "ScreenRecording: YES" ascii
+        $msg4 = "FullDiskAccess: YES" ascii
+        $msg5 = "kMDItemDisplayName = *TCC.db" ascii
+
      condition:
-        all of them
-}
-
-rule APT10_redleaves_dll {
-      meta:
-        description = "RedLeaves loader dll"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "3938436ab73dcd10c495354546265d5498013a6d17d9c4f842507be26ea8fafb"
-
-     strings:
-        $a2a = {40 3D ?? ?? 06 00 7C EA 6A 40 68 00 10 00 00 68 ?? ?? 06 00 6A 00 FF 15 ?? ?? ?? ?? 85 C0}
-     condition:
-        all of them
-}
-
-rule APT10_Himawari_strings {
-      meta:
-        description = "detect Himawari(a variant of RedLeaves) in memory"
-        author = "JPCERT/CC Incident Response Group"
-        rule_usage = "memory scan"
-        reference = "https://www.jpcert.or.jp/present/2018/JSAC2018_01_nakatsuru.pdf"
-        hash1 = "3938436ab73dcd10c495354546265d5498013a6d17d9c4f842507be26ea8fafb"
-
-      strings:
-        $h1 = "himawariA"
-        $h2 = "himawariB"
-        $h3 = "HimawariDemo"
-      condition: all of them
-}
-
-rule APT10_Lavender_strings {
-      meta:
-        description = "detect Lavender(a variant of RedLeaves) in memory"
-        author = "JPCERT/CC Incident Response Group"
-        rule_usage = "memory scan"
-        reference = "internal research"
-        hash1 = "db7c1534dede15be08e651784d3a5d2ae41963d192b0f8776701b4b72240c38d"
-
-      strings:
-        $a1 = { C7 ?? ?? 4C 41 56 45 }
-        $a2 = { C7 ?? ?? 4E 44 45 52 }
-      condition: all of them
-}
-
-rule APT10_Armadill_strings {
-      meta:
-        description = "detect Armadill(a variant of RedLeaves) in memory"
-        author = "JPCERT/CC Incident Response Group"
-        rule_usage = "memory scan"
-        reference = "internal research"
-
-      strings:
-        $a1 = { C7 ?? ?? 41 72 6D 61 }
-        $a2 = { C7 ?? ?? 64 69 6C 6C }
-      condition: all of them
-}
-
-rule APT10_zark20rk_strings {
-      meta:
-        description = "detect zark20rk(a variant of RedLeaves) in memory"
-        author = "JPCERT/CC Incident Response Group"
-        rule_usage = "memory scan"
-        reference = "internal research"
-        hash1 = "d95ad7bbc15fdd112594584d92f0bff2c348f48c748c07930a2c4cc6502cd4b0"
-
-      strings:
-        $a1 = { C7 ?? ?? 7A 61 72 6B }
-        $a2 = { C7 ?? ?? 32 30 72 6B }
-      condition: all of them
-}
-
-rule APT10_HTSrl_signed {
-      meta:
-        description = "HT Srl signature using APT10"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "2965c1b6ab9d1601752cb4aa26d64a444b0a535b1a190a70d5ce935be3f91699"
-
-    	strings:
-            $c="IT"
-            $st="Italy"
-            $l="Milan"
-            $ou="Digital ID Class 3 - Microsoft Software Validation v2"
-            $cn="HT Srl"
-    	condition:
-        	all of them
-}
-
-rule APT10_ChChes_lnk {
-      meta:
-        description = "LNK malware ChChes downloader"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "6d910cd88c712beac63accbc62d510820f44f630b8281ee8b39382c24c01c5fe"
-
-    	strings:
-    		$v1a = "cmd.exe"
-     		$v1b = "john-pc"
-    		$v1c = "win-hg68mmgacjc"
-        $v1d = "t-user-nb"
-        $v1e = "C:\\Users\\suzuki\\Documents\\my\\card.rtf" wide
-    	condition:
-    		$v1a and ($v1b or $v1c or $v1d) or $v1e
-}
-
-rule APT10_ChChes_strings
-{
-      meta:
-        description = "ChChes malware"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "7d515a46a7f4edfbae11837324f7c56b9a8164020e32aaaa3bef7d38763dd82d "
-
-    	strings:
-    		$v1a = "/%r.html"
-    		$v1b = "http://"
-    		$v1c = "atan2"
-    		$v1d = "_hypot"
-    		$v1e = "_nextafter"
-    		$d1a = { 68 04 E1 00 00 }
-    	condition:
-    		all of them
-}
-
-rule APT10_ChChes_powershell {
-      meta:
-        description = "ChChes dropper PowerShell based PowerSploit"
-        author = "JPCERT/CC Incident Response Group"
-        hash = "9fbd69da93fbe0e8f57df3161db0b932d01b6593da86222fabef2be31899156d"
-
-    	strings:
-    		$v1a = "Invoke-Shellcode"
-    		$v1b = "Invoke-shCdpot"
-    		$v1c = "invoke-ExEDoc"
-    	condition:
-    		$v1c and ($v1a or $v1b)
+       (uint32(0) == 0xfeedface or
+        uint32(0) == 0xcefaedfe or
+        uint32(0) == 0xfeedfacf or
+        uint32(0) == 0xcffaedfe or
+        uint32(0) == 0xcafebabe or
+        uint32(0) == 0xbebafeca or
+        uint32(0) == 0xcafebabf or
+        uint32(0) == 0xbfbafeca) and
+       5 of them
 }
